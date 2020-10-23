@@ -21,31 +21,31 @@ Azure Media Service SDK for javascript를 활용한 [Nest](https://github.com/ne
 
 
 ## Todo List
-- [] Media Service 연결 및 작동 Test
+- [ ] Media Service 연결 및 작동 Test
 - API 나누기
-  - [] Init
-    - [] Azure Credentail 획득
-    - [] Media Service 연결
-    - [] Live Event 확인 및 생성
-    - [] Asset 확인 및 생성
-    - [] Live Output 확인 및 생성
-    - [] Streaming Locator 확인 및 생성
-    - [] Streaming End Point 확인 및 생성 
+  - [ ] Init
+    - [ ] Azure Credentail 획득
+    - [ ] Media Service 연결
+    - [ ] Live Event 확인 및 생성
+    - [ ] Asset 확인 및 생성
+    - [ ] Live Output 확인 및 생성
+    - [ ] Streaming Locator 확인 및 생성
+    - [ ] Streaming End Point 확인 및 생성 
 
-  - [] Start
-    - [] Live Event 시작
-    - [] Live Output 시작
-    - [] Streaming End Point 시작
+  - [ ] Start
+    - [ ] Live Event 시작
+    - [ ] Live Output 시작
+    - [ ] Streaming End Point 시작
 
-  - [] Stop
-    - [] Streaming End Point 종료
-    - [] Live Output 종료
-    - [] Live Event 종료
+  - [ ] Stop
+    - [ ] Streaming End Point 종료
+    - [ ] Live Output 종료
+    - [ ] Live Event 종료
 
-  - [] Remove
-    - [] Live Event 확인 및 제거
-    - [] Asset 확인 및 제거
-    - [] Live Output 확인 및 제거
-    - [] Streaming Locator 확인 및 제거
-    - [] Streaming End Point 확인 및 제거 
+  - [ ] Remove
+    - [ ] Live Event 확인 및 제거
+    - [ ] Asset 확인 및 제거
+    - [ ] Live Output 확인 및 제거
+    - [ ] Streaming Locator 확인 및 제거
+    - [ ] Streaming End Point 확인 및 제거 
    
