@@ -1,178 +1,308 @@
 import { Injectable } from '@nestjs/common';
 import * as msRestNodeAuth from "@azure/ms-rest-nodeauth";
-import { AzureMediaServices, AzureMediaServicesModels } from "@azure/arm-mediaservices";
+import { Assets, AzureMediaServices, AzureMediaServicesModels, LiveEvents, LiveOutputs, StreamingEndpoints, StreamingLocators } from "@azure/arm-mediaservices";
 import { UriBuilder } from 'uribuilder';
-import { EnabledProtocols } from '@azure/arm-mediaservices/esm/models/mappers';
+import { EnabledProtocols, LiveEventInput } from '@azure/arm-mediaservices/esm/models/mappers';
+import { RestResponse, ServiceClientCredentials } from '@azure/ms-rest-js';
+import { ConfigService } from '@nestjs/config';
+import { throwError } from 'rxjs';
+import { LiveOutput, StreamingEndpoint, StreamingLocator } from '@azure/arm-mediaservices/esm/models';
 
 @Injectable()
 export class ApiService {
-    private readonly myAzureInfo = {
-        armAadAudience :"https://management.core.windows.net",
-        aadEndpoint :"https://login.microsoftonline.com/",
-        armEndpoint :"https://management.azure.com",
+    private azureAuth;
+    private mediaService : AzureMediaServices;
+    private liveEvent: LiveEvents;
+    private asset : Assets; 
+    private liveOutput : LiveOutputs; 
+    private streamingLocator : StreamingLocators; 
+    private streamingEndPoint; // ?
+    private injestUrl;
+    private playerPath;
 
-        subscriptionId :"c033c522-abfb-4c51-9b60-033187f184eb",
-        liveEventName :"TestLiveEvent",
-        resourceGroupName :"live_streaming",
-        accountName :"live",
-        region :"Korea Central",
-
-        aadClientId :"8178290d-f8df-4915-ac21-95fa5164bffb",
-        aadSecret :"_Nto~QO6QoFGZAiOM~Ti6yPp5_9-cXO74G",
-        aadTenantId :"083974be-e60e-4ff9-8824-e5a3e38ddde6",
-    };
-    // private myLiveEvents = null;
-    // private myAzureAuth = null;
-
-    /*
-    constructor() {
-        this.myLiveEvents = msRestNodeAuth.loginWithServicePrincipalSecret(this.myAzureInfo.aadClientId, this.myAzureInfo.aadSecret, this.myAzureInfo.aadTenantId);
-    }*/
-
-    async startLiveStreaming() {
-        // login
-        const azureAuth = await msRestNodeAuth.loginWithServicePrincipalSecret(this.myAzureInfo.aadClientId, this.myAzureInfo.aadSecret, this.myAzureInfo.aadTenantId);
-        console.log(`login success!`);
-        const client = new AzureMediaServices(azureAuth, this.myAzureInfo.subscriptionId);
-        const startInfo = await client.liveEvents.start(
-            this.myAzureInfo.resourceGroupName, 
-            this.myAzureInfo.accountName, 
-            this.myAzureInfo.liveEventName
-        )
-        console.log(`Success start LiveEvents`);
+    private resourceGroupName = this.configService.get<string>("resourceGroupName")
+    private accountName = this.configService.get<string>("accountName")
+    private region = this.configService.get<string>("region")
         
-        if (!startInfo) return `Error : start live streaming! ${startInfo}`;
+    private liveEventName = this.configService.get<string>("liveEventName")
+    private liveOutputName = this.configService.get<string>("liveOutput")
+    private assetName = `liveevnt-${this.liveEventName}-${this.liveOutputName}`
+    private streamingLocatorName = this.configService.get<string>("streamingLocator")
+    private streamingEndpointName = this.configService.get<string>("streamingEndpoint")
 
-        // Create an Asset for the LiveOutput to use
-        const assetName = `liveevent-${this.myAzureInfo.liveEventName}-TestLiveOutput`
-        console.log(`Creating an asset named ${assetName}...`)
-        const asset = await client.assets.createOrUpdate(
-            this.myAzureInfo.resourceGroupName,
-            this.myAzureInfo.accountName,
-            assetName,
-            {
+    constructor(private readonly configService: ConfigService){}
 
-            })
-        console.log(`done! \n`)
-
-
-        // Create the Live Output
-        console.log(`Creating the Live Output...`)
-        const liveOutputName = "TestLiveOutput";
-        const liveOutput = await client.liveOutputs.create(
-            this.myAzureInfo.resourceGroupName, 
-            this.myAzureInfo.accountName, 
-            this.myAzureInfo.liveEventName,
-            liveOutputName,
-            {
-                assetName: assetName,
-                archiveWindowLength : "PT8H"
-            }
-            )
-        console.log(`done! \n`)
-
-        // Create the Streaming Locator
-        const streamingLocatorName = "TestStreamingLocator"
-        console.log(`Creatking the Streaming Locator : ${streamingLocatorName}...`)
-        const streamingLocator = await client.streamingLocators.create(
-            this.myAzureInfo.resourceGroupName,
-            this.myAzureInfo.accountName,
-            streamingLocatorName,
-            {
-                assetName:assetName,
-                streamingPolicyName : "Predefined_ClearStreamingOnly",
-            })
-        console.log(`done! \n`)
-
-
-        // Get the Default stremaing Endpoint on the account
-        const streamingEndPointName = "TestStreamingEndPoint"
-        console.log(`Creating a Streaming End Point... : (Name : ${streamingEndPointName})`)
-        const streamingEndpoint = await client.streamingEndpoints.create(
-            this.myAzureInfo.resourceGroupName,
-            this.myAzureInfo.accountName,
-            streamingEndPointName,
-            {
-                location:this.myAzureInfo.region,
-                scaleUnits: 1
-            },
-        )
-        console.log(`done! \n`)
-
-        // start Streaming EndPoint
-        console.log("start streaming EndPoint....")
-        const startStreamingEndPoint = await client.streamingEndpoints.start(
-            this.myAzureInfo.resourceGroupName,
-            this.myAzureInfo.accountName,
-            streamingEndPointName
-        )
-        console.log(`done! \n`)
-
+    async initLiveEvent() {
+        // 0. Setting env variables
+        /*
+        const resourceGroupName = this.configService.get<string>("resourceGroupName")
+        const accountName = this.configService.get<string>("accountName")
+        const region = this.configService.get<string>("region")
         
-        // Get the url to stream the output
-        console.log(`\n\n-----------------`)
-        console.log(`Getting the stream url...`)
-        const paths = await client.streamingLocators.listPaths(
-            this.myAzureInfo.resourceGroupName,
-            this.myAzureInfo.accountName,
-            streamingLocatorName
+        const liveEventName = this.configService.get<string>("liveEventName")
+        const liveOutputName = this.configService.get<string>("liveOutput")
+        const assetName = `liveevnt-${liveEventName}-${liveOutputName}`
+        const streamingLocatorName = this.configService.get<string>("streamingLocator")
+        const streamingEndpointName = this.configService.get<string>("streamingEndpoint")
+    */
+        // 1. Azure Credential 획득
+        console.log(`1. Azure Credential 획득 중 ...`)
+        this.azureAuth = await msRestNodeAuth.loginWithServicePrincipalSecret(
+            this.configService.get<string>("aadClientId"),
+            this.configService.get<string>("aadSecret"),
+            this.configService.get<string>("aadTenantId")
         )
+        console.log(`1. done!\n`)
 
-        let stringBuilder = ""
-        let playerPath = "";
-        console.log(`The urls to stream the output from a client:`);
+        // 2. Media Service 연결
+        console.log(`2. Media Service 연결 중 ....`)
+        this.mediaService = new AzureMediaServices(
+            this.azureAuth,
+            this.configService.get<string>('subscriptionId'),
+        )
+        console.log(`2. done!\n`)
 
-        paths.streamingPaths.forEach(streamingPath => {
+
+        // 3. Live Event 확인 및 생성
+        console.log(`3. Live Event 있는지 확인 중 ....`)
+        const liveEventResult = await this.mediaService.liveEvents.get(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName
+        ).catch((err) => {
+            console.log(err);
+            return err;
+        })
+        
+        if (liveEventResult.hasOwnProperty('error')) {
+            console.log(`생성중...`)
+            this.liveEvent = await this.mediaService.liveEvents.create(
+                this.resourceGroupName,
+                this.accountName,
+                this.liveEventName,
+                {
+                    location : this.region,
+                    input: { streamingProtocol: 'RTMP' }
+                }
+            ).then(res => {
+                this.injestUrl = res.input.endpoints[0].url
+                console.log(`url : ${this.injestUrl}`)  
+            })
+            .catch(err => {
+                console.log(err);
+                return err;
+            })
+        } else {
+            console.log(`연결중...`)
+            this.liveEvent = liveEventResult;
+            this.injestUrl = liveEventResult.input.endpoints[0].url;
+            console.log(this.injestUrl)
+            await this.mediaService.liveEvents.start(
+                this.resourceGroupName,
+                this.accountName,
+                this.liveEventName
+            ).then(res=>console.log(res))
+            .catch(err=>console.log(err))
+        }
+        console.log(`3. done!\n`)
+
+        // 3-1. start live events
+        /*
+        console.log(`3-1. Live Events 시작하는 중...`)
+        await this.mediaService.liveEvents.start(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName
+        ).catch(err=>console.log(err))
+        console.log(`3-1. done!\n`)
+        */
+
+        // 4. Asset 확인 및 생성
+        console.log(`4. Asset 확인 및 생성 중...`)
+        this.asset = await this.mediaService.assets.createOrUpdate(
+            this.resourceGroupName,
+            this.accountName,
+            this.assetName,
+            {}
+        )
+        .then(res => console.log(res))
+        .catch((err) => {
+            console.log(err)
+            return err
+        })
+        
+        console.log(`4. done!\n`)
+            
+        // 5. Live Output 확인 및 생성
+        console.log(`5. Live Output 확인 및 생성 중...`)
+        const liveOutputResult = await this.mediaService.liveOutputs.get(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName,
+            this.liveOutputName
+        ).catch(err=>{
+            console.log(err)
+            return err
+        })
+        
+        if(liveOutputResult.hasOwnProperty('error')) {
+            console.log(`생성중...`)
+            this.liveOutput = await this.mediaService.liveOutputs.create(
+                this.resourceGroupName,
+                this.accountName,
+                this.liveEventName,
+                this.liveOutputName,
+                {
+                    archiveWindowLength : "PT8H",
+                    assetName: this.assetName
+                }
+            ).catch(err => err)
+        } else {
+            console.log(`연결중...`)
+            this.liveOutput = liveOutputResult
+        }
+        console.log(`5. done!\n`)
+            
+        // 6. Streaming Locator 확인 및 생성
+        console.log(`6. Streaming Locator 확인 및 생성 중...`)
+        const streamingLocatorResult = await this.mediaService.streamingLocators.get(
+            this.resourceGroupName,
+            this.accountName,
+            this.streamingLocatorName
+        ).catch(err => err)
+        if(streamingLocatorResult.hasOwnProperty('error')){
+            console.log(`생성중...`)
+            this.streamingLocator = await this.mediaService.streamingLocators.create(
+                this.resourceGroupName,
+                this.accountName,
+                this.streamingLocatorName,
+                {
+                    assetName: this.assetName,
+                    streamingPolicyName :"Predefined_ClearStreamingOnly",
+                }
+            ).catch(err => err)
+
+        } else {
+            console.log(`연결중...`)
+            this.streamingEndPoint = streamingLocatorResult
+        }
+        console.log(`6. done!\n`)
+            
+        // 7. Streaming End Point 확인 및 생성
+        console.log(`7. Streaming End Point 확인 및 생성 중...`)
+        const streamingEndPointResult = await this.mediaService.streamingEndpoints.get(
+            this.resourceGroupName,
+            this.accountName,
+            this.streamingEndpointName
+        ).catch(err => err)
+        if(streamingEndPointResult.hasOwnProperty("error")) {
+            console.log(`생성중...`)
+            await this.mediaService.streamingEndpoints.create(
+                this.resourceGroupName,
+                this.accountName,
+                this.streamingEndpointName,
+                {
+                    location: this.region,
+                    scaleUnits: 1
+                }
+            ).then(async res => {
+                this.streamingEndPoint = await this.mediaService.streamingEndpoints.get(
+                    this.resourceGroupName,
+                    this.accountName,
+                    this.streamingEndpointName
+                ).catch(err => err)
+            })
+            .catch(err => err)
+        } else {
+            console.log(`연결중...`)
+            this.streamingEndPoint = await this.mediaService.streamingEndpoints.get(
+                this.resourceGroupName,
+                this.accountName,
+                this.streamingEndpointName
+            ).catch(err => err)
+        }
+        console.log(`7. done!\n`)
+
+        return {
+            message : `Success init Live Event!`,
+            injestUrl : this.injestUrl
+        };
+    }
+
+    async startLiveEvent() {
+        /*
+        console.log(`1. Live Events 시작 중...`)
+        const liveEventStartResult = await this.mediaService.liveEvents.start(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName
+        ).catch(err=>console.log(err))
+        // console.log(liveEventStartResult)
+        console.log(`1. done!\n`)
+        */
+        
+        console.log(`1. Streaming Endpoint 시작 중 ...`)
+        await this.mediaService.streamingEndpoints.start(
+            this.resourceGroupName,
+            this.accountName,
+            this.streamingEndpointName
+        )
+        .then(res => console.log(`성공 : ${res}`))
+        .catch(err=> console.log(`에러! : ${err}`))
+        console.log(`1. done!\n`)
+
+        console.log(`2. streaming url 얻는 중 ...`)
+        
+        await this.mediaService.streamingLocators.listPaths(
+            this.resourceGroupName,
+            this.accountName,
+            this.streamingLocatorName
+        )
+        .then(res => {
+            console.log(this.streamingEndPoint)
+            console.log(res)
 
             const uriBuilder = new UriBuilder();
-            uriBuilder.schema = 'https';
-            uriBuilder.host = streamingEndpoint.hostName;
             
-            if (streamingPath.paths.length > 0){
-                uriBuilder.setPath(streamingPath.paths[0]);
-                /*
-                        stringBuilder.AppendLine($"\t{paths.StreamingPaths[i].StreamingProtocol}-{paths.StreamingPaths[i].EncryptionScheme}");
-                        stringBuilder.AppendLine($"\t\t{uriBuilder.ToString()}");
-                        stringBuilder.AppendLine();
-                */
-               stringBuilder += `\n\t${streamingPath.streamingProtocol}-${streamingPath.encryptionScheme}`
-               stringBuilder += `\n\t${uriBuilder.toString()}\n`;
 
+            res.streamingPaths.forEach(element => {
+                console.log(element.paths)
+                uriBuilder.schema = 'https'
+                uriBuilder.host = this.streamingEndPoint.hostName
 
-                if (streamingPath.streamingProtocol === "Dash")
-                    playerPath = uriBuilder.toString();
-    
-            }
-            
-        });
-
-        if (stringBuilder.length > 0) {
-            console.log(stringBuilder.toString());
-            console.log("Open the following URL to playback the published,recording LiveOutput in the Azure Media Player")
-            console.log(`\t https://ampdemo.azureedge.net/?url=${playerPath}&heuristicprofile=lowlatency`);
-            console.log(`Continue experimenting with the stream until you are ready to finish.`);
-            // console.log(`Press enter to stop the LiveOutput...`);
-            
-        } else {
-            console.log(`No Streaming Paths were detected.  Has the Stream been started?`);
-            console.log(`Cleaning up and Exiting...`);
+                if (element.paths.length > 0) {
+                    uriBuilder.setPath(element.paths[0])
+                }
+            })
+            this.playerPath = uriBuilder.toString()
+        })
+        .catch(err=> console.log(`에러 ! : ${err}`))
+        console.log(`2. done!\n`)
+        console.log(this.playerPath)
+        
+        return {
+            message : `Success Start Live Event!`,
+            playerPath : this.playerPath
         }
-
-        return `Success : start live streaming!`;
-        // 
     }
     
-    async stopLiveStreaming() {
-        const azureAuth = await msRestNodeAuth.loginWithServicePrincipalSecret(this.myAzureInfo.aadClientId, this.myAzureInfo.aadSecret, this.myAzureInfo.aadTenantId);
-        const azureMediaServicesClient = new AzureMediaServices(azureAuth, this.myAzureInfo.subscriptionId);
-        const stopInfo = await azureMediaServicesClient.liveEvents.stop(
-            this.myAzureInfo.resourceGroupName, 
-            this.myAzureInfo.accountName, 
-            this.myAzureInfo.liveEventName,
-            {removeOutputsOnStop: true}
-        )
 
-        return `Success : stop live streaming!`;
+
+    // 종료!
+    async stopLiveEvents() {
+        console.log(`Live Events 종료 중...`)
+        const liveEventStopResult = await this.mediaService.liveEvents.stop(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName,
+            { removeOutputsOnStop : true }
+        ).catch(err => err)
+        console.log(`done!\n`)
+
+        return `Success!`
     }
-    
+
+    async removeLiveEvents() {
+
+    }
 }

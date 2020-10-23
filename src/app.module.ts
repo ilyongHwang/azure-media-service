@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 // import { AppController } from './app.controller';
 // import { AppService } from './app.service';
 // import { ApiController } from './api/api.controller';
@@ -6,8 +7,9 @@ import { Module } from '@nestjs/common';
 import { ApiModule } from './api/api.module';
 
 @Module({
-  imports: [ApiModule],
+  imports: [ApiModule, ConfigModule.forRoot(
+    { envFilePath: '.development.env' })],
   controllers: [],
-  providers: [],
+  providers: [],  
 })
 export class AppModule {}
