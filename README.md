@@ -30,7 +30,8 @@ Azure Media Service SDK for javascript를 활용한 [Nest](https://github.com/ne
     - [x] Asset 확인 및 생성
     - [x] Live Output 확인 및 생성
     - [x] Streaming Locator 확인 및 생성
-    - [x] Streaming End Point 확인 및 생성 
+    - [x] Streaming End Point 확인 및 생성
+    - [ ] 시작되고있는 경우 종료해줄것
 
   - [x] Start
     - [x] Live Event 시작
@@ -40,12 +41,12 @@ Azure Media Service SDK for javascript를 활용한 [Nest](https://github.com/ne
   - [x] Stop
     - [x] Streaming End Point 종료
     - [x] Live Output 종료
+      - live event 종료시 자동으로 stop
     - [x] Live Event 종료
 
-  - [x] Remove
-    - [x] Live Event 확인 및 제거
-    - [x] Asset 확인 및 제거
-    - [x] Live Output 확인 및 제거
-    - [x] Streaming Locator 확인 및 제거
-    - [x] Streaming End Point 확인 및 제거 
-   
+  - [ ] Remove
+    - [ ] Live Event 확인 및 제거
+    - [ ] Asset 확인 및 제거
+    - [ ] Live Output 확인 및 제거
+    - [ ] Streaming Locator 확인 및 제거
+    - [ ] Streaming End Point 확인 및 제거

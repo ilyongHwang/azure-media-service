@@ -21,6 +21,10 @@ export class ApiController {
         return this.apiService.stopLiveEvents();
     }
     
+    @Get('media-service')
+    getMediaService() : Promise<{message:string}> {
+        return this.apiService.getMediaService();
+    }
 
     /*
     @Get('stop')
