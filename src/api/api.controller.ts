@@ -20,16 +20,17 @@ export class ApiController {
     stopLiveEvent() : Promise<string> {
         return this.apiService.stopLiveEvents();
     }
+
+
+    @Get('remove')
+    removeEvent() : Promise<string> {
+        return this.apiService.removeLiveEvents()
+    }
     
     @Get('media-service')
     getMediaService() : Promise<{message:string}> {
         return this.apiService.getMediaService();
     }
 
-    /*
-    @Get('stop')
-    stopLiveStreaming() : Promise<string>{
-        return this.apiService.stopLiveStreaming();
-    }*/
 
 }

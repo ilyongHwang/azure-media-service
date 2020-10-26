@@ -70,9 +70,11 @@ export class ApiService {
                 this.resourceGroupName,
                 this.accountName,
                 this.liveEventName,
-                {
+                { 
+                    useStaticHostname: true,        //?!!?!?!?!?!?!?!?!?!?!?!?!?!?!?
                     location : this.region,
-                    input: { streamingProtocol: 'RTMP' }
+                    input: { streamingProtocol: 'RTMP' },
+                    
                 }
             ).then(async (res) => {
                 return await this.mediaService.liveEvents.get(
@@ -93,6 +95,7 @@ export class ApiService {
         } else {
             console.log(`연결중...`)
             this.liveEvent = liveEventResult;
+            console.log(this.liveEvent);
             this.injestUrl = liveEventResult.input.endpoints[0].url;
             console.log(this.injestUrl)
         }
@@ -306,7 +309,28 @@ export class ApiService {
 
     // Resource 제거
     async removeLiveEvents() {
+        console.log(`1. Live Outputs 삭제 중...`)
+        // 있는지 확인부터 해야 할 것 같은데
+        await this.mediaService.liveOutputs.deleteMethod(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName,
+            this.liveOutputName
+        )
+        console.log(`done!\n`)
 
+        console.log(`2. Live Event 삭제 중...`)
+        await this.mediaService.liveEvents.deleteMethod(
+            this.resourceGroupName,
+            this.accountName,
+            this.liveEventName
+        ).then((res) => {
+            console.log(res)
+        })
+        .catch((err) => console.log(err))
+        console.log(`done!\n`)
+
+        return `Success Remove LiveEvents`
     }
 
 
@@ -333,5 +357,5 @@ export class ApiService {
             message: `Success Get Media Servce`
         }
     }
-    
+
 }
