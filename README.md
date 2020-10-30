@@ -21,7 +21,9 @@ Azure Media Service SDK for javascript를 활용한 [Nest](https://github.com/ne
 
 
 ## Todo List
-- [x] Media Service 연결 및 작동 Test
+<details>
+    <summary>✔ Media Service 연결 및 작동 Test</summary>
+
 - API 나누기
   - [x] Init
     - [x] Azure Credentail 획득
@@ -50,3 +52,4 @@ Azure Media Service SDK for javascript를 활용한 [Nest](https://github.com/ne
     - [ ] Live Output 확인 및 제거
     - [ ] Streaming Locator 확인 및 제거
     - [ ] Streaming End Point 확인 및 제거
+</deatils>
